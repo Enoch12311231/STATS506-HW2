@@ -1,0 +1,311 @@
+---
+title: "STATS506 HW2"
+author: "Yinuo Liu"
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+---
+
+```{r}
+#1a
+momentum_walk1=function(n,p){
+#sanitize
+  if(n<1){
+    stop("n should be at least 1!")
+  }
+  if(p<0||p>1){
+    stop("p must be between 0 and 1!")
+  }
+  
+#function part  
+  directions=list(
+    c(1,0),
+    c(-1,0),
+    c(0,1),
+    c(0,-1)
+  )
+  
+  position=c(0,0)
+  previous_direction=sample(1:4,1)
+  position=position+directions[[previous_direction]]
+  
+  if(n>1){
+    for(i in 2:n){
+      if(runif(1)>p){
+        previous_direction=sample(1:4,1)
+      }
+      position=position+directions[[previous_direction]]
+    }
+  }
+  return(position)
+}
+momentum_walk1(10,0.6)
+```
+
+```{r}
+#1b
+#the answer in 1a is the Version 1 simulation. Here I'll write the Version 2 in 1b task.
+
+momentum_walk2=function(n,p){
+#sanitize
+  if(n<1){
+    stop("n should be at least 1!")
+  }
+  if(p<0||p>1){
+    stop("p must be between 0 and 1!")
+  }
+  
+#function part  
+  directions=list(
+    c(1,0),
+    c(-1,0),
+    c(0,1),
+    c(0,-1)
+  )
+  
+  first_direction=sample(1:4,1)
+  previous_direction=first_direction
+  
+  if(n>1){
+    current_directions=sapply(2:n,function(i){
+      if(runif(1)>p){
+        previous_direction<<-sample(1:4,1)
+      }
+      return(previous_direction)
+    })
+    all_directions=c(first_direction,current_directions)
+  }
+  else{
+    all_directions=first_direction
+  }
+  
+  moves=sapply(all_directions,function(i){
+    directions[[i]]
+  })
+  position=rowSums(moves)
+  return(position)
+}
+momentum_walk2(10,0.6)
+momentum_walk1(1000,0.6)
+momentum_walk2(1000,0.6)
+#search how to use "<<-" in chatgpt.
+```
+
+momentum_walk1() uses a for loop to simulate. After first direction is chosen randomly, the code uses a comparison between the random number of Uniform distribution and p to confirm the every subsequent direction of the next step.
+
+momentum_walk2() uses sapply() to simulate. Firstly, the code generates the the whole direction sets from the previous direction by using sapply(). Then, the set is converted into a two-dimensional movements and is summed to obtain the final position.
+
+```{r}
+#1c
+set.seed(123)
+momentum_walk1(10,0.6)
+set.seed(123)
+momentum_walk1(10,0.6)
+
+set.seed(123)
+momentum_walk1(1000,0.6)
+set.seed(123)
+momentum_walk1(1000,0.6)
+```
+
+I use the set.seed() function to make the result reproducible. After using it, the R's random number starting states are fixed. Therefore, functions like sample() and runif() generate the same sequence of random values every time.
+
+```{r}
+#1d
+position0=momentum_walk1(1000,0)
+position0.5=momentum_walk1(1000,0.5)
+position0.9=momentum_walk1(1000,0.9)
+
+d0=sqrt(position0[1]^2+position0[2]^2)
+d0.5=sqrt(position0.5[1]^2+position0.5[2]^2)
+d0.9=sqrt(position0.9[1]^2+position0.9[2]^2)
+
+d0
+d0.5
+d0.9
+```
+
+According to the three simulations, increasing momentum appears to increase the final distance.
+
+```{r}
+#1e
+p_values=c(0,0.25,0.5,0.75,0.9)
+
+mean_distances=sapply(p_values,function(p){
+  distances=replicate(1000,{
+    position=momentum_walk1(1000,p)
+    sqrt(position[1]^2+position[2]^2)
+  })
+  mean(distances)
+})
+
+results=data.frame(
+  p=p_values,
+  mean_distance=mean_distances
+)
+print(results)
+```
+
+According to the thousands of simulation, mean final distance increases as p increases.
+
+```{r}
+#1f
+library(microbenchmark)
+
+bench_1000=microbenchmark(
+  walk1=momentum_walk1(1000,0.6),
+  walk2=momentum_walk2(1000,0.6)
+)
+bench_1000
+
+bench_100000=microbenchmark(
+  walk1=momentum_walk1(100000,0.6),
+  walk2=momentum_walk2(100000,0.6)
+)
+bench_100000
+```
+
+i: momentum_walk1() is faster.
+
+ii: According to the mean figures of the microbenchmark() charts, the momentum_walk1() is almost 52.5% faster than the momentum_walk2() in bench_1000. In comparison, the momentum_walk1() is almost 52.4% faster than the momentum_walk2() in bench_100000. Therefore, there is only slight difference.
+
+iii: The sapply() version creates intermediate vectors and matrices, which are additional operations.
+
+```{r}
+#2
+set.seed(123)
+days=10000
+morning=rowSums(
+  matrix(rpois(days*3,lambda=4),nrow=days)
+)
+
+peak_morning=rnorm(days,mean=45,sd=4)
+
+noon=rowSums(
+  matrix(rpois(days*6,lambda=15),nrow=days)
+)
+
+afternoon=rnorm(days,mean=55,sd=5)
+
+evening=rowSums(
+  matrix(rpois(days*6,lambda=9),nrow=days)
+)
+
+total_passengers=morning+peak_morning+noon+afternoon+evening
+mean(total_passengers)
+```
+
+According to the result of the simulation, I estimate that the expected total number of passengers who board the bus per day would be 256.
+
+```{r}
+youtube <- read.csv(
+  "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-03-02/youtube.csv"
+)
+#3a
+youtube_de=youtube[,c(
+  "year",
+  "funny",
+  "show_product_quickly",
+  "patriotic",
+  "celebrity",
+  "danger",
+  "animals",
+  "use_sex",
+  "view_count",
+  "like_count",
+  "dislike_count",
+  "favorite_count",
+  "comment_count"
+)]
+
+dim(youtube_de)
+```
+
+```{r}
+#3b
+par(mfrow=c(2,3))
+
+hist(youtube_de$view_count,main="View Count",xlab="Views")
+hist(youtube_de$like_count,main="Like Count",xlab="likes")
+hist(youtube_de$dislike_count,main="Dislike Count",xlab="Dislikes")
+hist(youtube_de$favorite_count,main="Favorite Count",xlab="Favorites")
+hist(youtube_de$comment_count,main="Comment Count",xlab="Comments")
+```
+
+According to the five histograms, the histograms of "View Count", "Like Count", "Dislike Count" and "Comment Count" are strongly right-skewed. Therefore, they need log transformation (specifically log(1+x) to retain the observations with zero count) before using them. "Favorite Count" has no variation, so it is not appropriate as a variable for linear regression.
+
+```{r}
+#3c
+youtube_de$log_view_count=log1p(youtube_de$view_count)
+youtube_de$log_like_count=log1p(youtube_de$like_count)
+youtube_de$log_dislike_count=log1p(youtube_de$dislike_count)
+youtube_de$log_comment_count=log1p(youtube_de$comment_count)
+
+outcomes=c(
+  "log_view_count",
+  "log_like_count",
+  "log_dislike_count",
+  "log_comment_count"
+)
+
+characteristics=c(
+  "funny",
+  "show_product_quickly",
+  "patriotic",
+  "celebrity",
+  "danger",
+  "animals",
+  "use_sex"
+)
+
+#y is the outcomes, X is the characteristics,and the output is 4*7=28 regression model information.
+results=do.call(rbind,lapply(outcomes,function(y){
+  do.call(rbind,lapply(characteristics,function(x){
+    model=lm(
+      as.formula(paste(y,"~",x,"+year")),
+      data=youtube_de
+    )
+    coefs=summary(model)$coefficients
+    
+    data.frame(
+      outcome=y,
+      characteristic=x,
+      estimate=coefs[2,"Estimate"],
+      p_value=coefs[2,"Pr(>|t|)"]
+    )
+  }))
+}))
+
+print(results)
+#search the usage of "do.call" in chatgpt.
+```
+
+1.  According to the chart above, none of the commercial characteristics has a statistically significant association with each engagement outcome at the 0.05 significance level.
+2.  Since none of the associations are statistically significant, there are no significant positive or negative associations to report.
+3.  "Danger" has a estimate value of almost 0.667, which is the largest positive estimated association with view counts among seven characteristics.
+
+```{r}
+#3d
+keep=complete.cases(
+  youtube_de$log_view_count,
+  youtube_de$danger,
+  youtube_de$year
+)
+y=youtube_de$log_view_count[keep]
+X=cbind(
+  intercept=1,
+  danger=as.numeric(youtube_de$danger[keep]),
+  year=youtube_de$year[keep]
+)
+beta_hat=solve(t(X)%*%X)%*%t(X)%*%y
+beta_hat
+
+danger_lm=lm(
+  log_view_count~danger+year,
+  data=youtube_de
+)
+
+coef(danger_lm)
+#check how to remove NA data in regression model("complete.cases") in chatgpt.
+```
